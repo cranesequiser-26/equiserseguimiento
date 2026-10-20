@@ -26,6 +26,8 @@
     </div>
     <div class="drawer-body" id="drawerBody"></div>
     <div class="drawer-footer">
+      <button class="btn accent" id="btnEditar">Editar acción</button>
+      <button class="btn" id="btnSeguimiento">Agregar seguimiento</button>
       <button class="btn primary" id="btnCopiar">Copiar resumen</button>
       <button class="btn" id="drawerClose2" onclick="document.getElementById('drawerClose').click()">Cerrar</button>
     </div>
@@ -52,6 +54,7 @@
           <button class="nav-btn" data-view="semanal">Seguimiento semanal <span class="count">reunión</span></button>
           <button class="nav-btn" data-view="alertas">Alertas y semáforos <span class="count" id="navAlertas">0</span></button>
           <button class="nav-btn" data-view="direccion">Vista Dirección <span class="count" id="navDireccion">10</span></button>
+          <button class="nav-btn" data-view="programas">Programas <span class="count" id="navProgramas">PMO</span></button>
           <button class="nav-btn" data-view="matriz">Matriz de alcance <span class="count">A·M·B</span></button>
         </div>
       </nav>
@@ -78,6 +81,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
           <input id="searchInput" type="search" placeholder="Buscar por código, tema, responsable, riesgo o etiqueta" aria-label="Buscar acciones" />
         </div>
+        <button class="btn primary" id="btnNueva" style="white-space:nowrap;">+ Nueva acción</button>
         <button class="icon-btn" id="themeToggle" aria-label="Cambiar a modo oscuro">◑</button>
       </header>
 
@@ -154,7 +158,14 @@
                 <small>Registro maestro · <span id="resultInfo"></span></small>
                 <strong>Seguimiento detallado</strong>
               </div>
-              <button class="btn accent" id="btnCsv">Exportar CSV de la vista filtrada</button>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn primary" id="btnNueva2">+ Nueva acción</button>
+                <button class="btn accent" id="btnCsv">Exportar CSV de la vista filtrada</button>
+                <button class="btn" id="btnExportarJson">Respaldar datos (JSON)</button>
+                <button class="btn" id="btnImportarJson">Importar respaldo</button>
+                <button class="btn danger" id="btnRestablecer">Restablecer datos</button>
+                <input type="file" id="importFile" accept="application/json" hidden />
+              </div>
             </div>
             <div class="table-wrap">
               <table>
@@ -226,6 +237,16 @@
               <div style="display:grid;gap:8px;" id="dirSinRecursos"></div>
             </section>
           </div>
+        </section>
+
+        <!-- ================= 9. PROGRAMAS (NIVEL PMO / SAP) ============== -->
+        <section class="view" id="view-programas" hidden>
+          <section class="panel">
+            <h3>Programas de nivel gerencial</h3>
+            <p class="panel-sub">Visión consolidada estilo PMO/SAP: cada programa agrupa acciones y consolida avance, semáforo, vencidas y exposición de riesgo para Dirección. Las acciones se asignan a un programa desde el editor de la acción.</p>
+            <button class="btn primary" id="btnNuevoPrograma">+ Nuevo programa</button>
+          </section>
+          <div id="programasGrid" class="prog-grid"></div>
         </section>
 
         <!-- ================= 6. MATRIZ DE ALCANCE ======================== -->
@@ -304,6 +325,105 @@
     </main>
   </div>
 
+  <!-- ======================= Modal: editor de acción ===================== -->
+  <div class="modal" id="modalEditor" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="editorTitulo">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="editorTitulo">Nueva acción</h2>
+        <button type="button" class="icon-btn" id="editorCerrar" aria-label="Cerrar editor">✕</button>
+      </div>
+      <form id="editorForm" class="modal-body" novalidate>
+        <div class="form-grid">
+          <div class="field span-2"><label for="edTitulo">Título *</label><input id="edTitulo" name="titulo" required maxlength="140" /></div>
+          <div class="field span-2"><label for="edDescripcion">Descripción / brecha</label><textarea id="edDescripcion" name="descripcion" rows="3"></textarea></div>
+          <div class="field"><label for="edPrioridad">Prioridad *</label>
+            <select id="edPrioridad" name="prioridad"><option>Alta</option><option selected>Media</option><option>Baja</option></select></div>
+          <div class="field"><label for="edEstado">Estado *</label><select id="edEstado" name="estado"></select></div>
+          <div class="field"><label for="edArea">Área *</label><input id="edArea" name="area" list="dlAreas" required /></div>
+          <div class="field"><label for="edSubarea">Subárea</label><input id="edSubarea" name="subarea" /></div>
+          <div class="field"><label for="edResponsable">Responsable único *</label><input id="edResponsable" name="responsable" list="dlResponsables" required /></div>
+          <div class="field"><label for="edColaboradores">Colaboradores (separados por coma)</label><input id="edColaboradores" name="colaboradores" /></div>
+          <div class="field"><label for="edVerificador">Verificador</label><input id="edVerificador" name="verificador" list="dlResponsables" /></div>
+          <div class="field"><label for="edOrigen">Origen</label><input id="edOrigen" name="origen" /></div>
+          <div class="field"><label for="edPrograma">Programa (nivel PMO)</label><select id="edPrograma" name="programa"></select></div>
+          <div class="field"><label for="edAvance">Avance % (0–100)</label><input id="edAvance" name="porcentaje_avance" type="number" min="0" max="100" step="5" value="0" /></div>
+          <div class="field"><label for="edFechaCreacion">Fecha de creación *</label><input id="edFechaCreacion" name="fecha_creacion" type="date" required /></div>
+          <div class="field"><label for="edFechaCompromiso">Fecha compromiso *</label><input id="edFechaCompromiso" name="fecha_compromiso" type="date" required /></div>
+          <div class="field"><label for="edFechaCierre">Fecha de cierre real</label><input id="edFechaCierre" name="fecha_cierre" type="date" /></div>
+          <div class="field"><label for="edImpacto">Impacto</label><input id="edImpacto" name="impacto" placeholder="p. ej. Legal y financiero" /></div>
+          <div class="field"><label for="edUrgencia">Urgencia</label>
+            <select id="edUrgencia" name="urgencia"><option>Inmediata</option><option selected>Programable</option><option>Diferible</option></select></div>
+          <div class="field span-2"><label for="edRiesgo">Riesgo por no ejecutar</label><textarea id="edRiesgo" name="riesgo" rows="2"></textarea></div>
+          <div class="field span-2"><label for="edEvidenciaReq">Evidencia requerida</label><textarea id="edEvidenciaReq" name="evidencia_requerida" rows="2"></textarea></div>
+          <div class="field check-field"><label for="edEvidenciaOk"><input id="edEvidenciaOk" name="evidencia_cargada" type="checkbox" /> Evidencia cargada (requisito de cierre)</label></div>
+          <div class="field"><label for="edBloqueo">Bloqueo (si aplica)</label><input id="edBloqueo" name="bloqueo" /></div>
+          <div class="field"><label for="edDependencia">Dependencia externa</label><input id="edDependencia" name="dependencia" /></div>
+          <div class="field span-2"><label for="edCriterioCierre">Criterio de cierre</label><textarea id="edCriterioCierre" name="criterio_cierre" rows="2"></textarea></div>
+          <div class="field span-2"><label for="edCriterioEficacia">Criterio de eficacia</label><textarea id="edCriterioEficacia" name="criterio_eficacia" rows="2"></textarea></div>
+          <div class="field span-2"><label for="edEtiquetas">Etiquetas (separadas por coma)</label><input id="edEtiquetas" name="etiquetas" /></div>
+        </div>
+        <datalist id="dlAreas"></datalist>
+        <datalist id="dlResponsables"></datalist>
+      </form>
+      <div class="modal-foot">
+        <span id="editorError" class="form-error" role="alert"></span>
+        <button type="button" class="btn danger" id="editorEliminar" hidden>Eliminar acción</button>
+        <button type="button" class="btn" id="editorCancelar">Cancelar</button>
+        <button type="submit" form="editorForm" class="btn primary">Guardar acción</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Modal: registrar seguimiento ==================== -->
+  <div class="modal" id="modalSeg" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="segTitulo">
+    <div class="modal-card modal-sm">
+      <div class="modal-head">
+        <h2 id="segTitulo">Agregar seguimiento</h2>
+        <button type="button" class="icon-btn" id="segCerrar" aria-label="Cerrar seguimiento">✕</button>
+      </div>
+      <form id="segForm" class="modal-body" novalidate>
+        <div class="form-grid">
+          <div class="field"><label for="segFecha">Fecha *</label><input id="segFecha" name="fecha" type="date" required /></div>
+          <div class="field"><label for="segAutor">Autor *</label><input id="segAutor" name="autor" list="dlResponsables" required placeholder="Quién reporta" /></div>
+          <div class="field span-2"><label for="segTexto">Seguimiento / decisión / comentario *</label><textarea id="segTexto" name="texto" rows="4" required placeholder="Qué se revisó, qué se decidió, qué se solicita"></textarea></div>
+          <div class="field check-field span-2"><label for="segHistorial"><input id="segHistorial" name="historial" type="checkbox" checked /> Registrar también en el historial de trazabilidad</label></div>
+        </div>
+      </form>
+      <div class="modal-foot">
+        <span id="segError" class="form-error" role="alert"></span>
+        <button type="button" class="btn" id="segCancelar">Cancelar</button>
+        <button type="submit" form="segForm" class="btn primary">Registrar seguimiento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== Modal: editor de programa ==================== -->
+  <div class="modal" id="modalProg" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="progTitulo">
+    <div class="modal-card modal-sm">
+      <div class="modal-head">
+        <h2 id="progTitulo">Nuevo programa</h2>
+        <button type="button" class="icon-btn" id="progCerrar" aria-label="Cerrar programa">✕</button>
+      </div>
+      <form id="progForm" class="modal-body" novalidate>
+        <div class="form-grid">
+          <div class="field span-2"><label for="prNombre">Nombre del programa *</label><input id="prNombre" name="nombre" required maxlength="90" /></div>
+          <div class="field"><label for="prSponsor">Sponsor / dueño</label><input id="prSponsor" name="sponsor" list="dlResponsables" /></div>
+          <div class="field"><label for="prEstado">Estado del programa</label>
+            <select id="prEstado" name="estado"><option selected>Activo</option><option>En pausa</option><option>Completado</option></select></div>
+          <div class="field"><label for="prInicio">Fecha de inicio</label><input id="prInicio" name="fecha_inicio" type="date" /></div>
+          <div class="field"><label for="prFin">Fecha objetivo</label><input id="prFin" name="fecha_fin" type="date" /></div>
+          <div class="field span-2"><label for="prObjetivo">Objetivo</label><textarea id="prObjetivo" name="objetivo" rows="3"></textarea></div>
+        </div>
+      </form>
+      <div class="modal-foot">
+        <span id="progError" class="form-error" role="alert"></span>
+        <button type="button" class="btn danger" id="progEliminar" hidden>Eliminar programa</button>
+        <button type="button" class="btn" id="progCancelar">Cancelar</button>
+        <button type="submit" form="progForm" class="btn primary">Guardar programa</button>
+      </div>
+    </div>
+  </div>
+
   <script src="assets/logo.js"></script>
   <script>
     // Asigna el logo incrustado (data-URI) a <img> de marca y favicon
@@ -323,5 +443,6 @@
   <script src="data-l.js"></script>
   <script src="data.js"></script>
   <script src="app.js"></script>
+  <script src="editor.js"></script>
 </body>
 </html>
